@@ -7,38 +7,54 @@ export default function Editor({ context }) {
     const [isLoading, setIsLoading] = useState(false);
     const [suggestion, setSuggestion] = useState("");
     const textareaRef = useRef(null);
+    const backdropRef = useRef(null);
+    const timeoutRef = useRef(null);
 
-    const handleKeyDown = async (e) => {
+    // Sync scroll between textarea and backdrop
+    const handleScroll = () => {
+        if (backdropRef.current && textareaRef.current) {
+            backdropRef.current.scrollTop = textareaRef.current.scrollTop;
+            backdropRef.current.scrollLeft = textareaRef.current.scrollLeft;
+        }
+    };
+
+    const handleChange = (e) => {
+        const newContent = e.target.value;
+        setContent(newContent);
+        setSuggestion(""); // Clear suggestion on type
+
+        // Debounce fetch
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+
+        if (newContent.trim().length > 5) { // Only fetch if there's some content
+            timeoutRef.current = setTimeout(() => {
+                fetchCompletion(newContent);
+            }, 1000); // 1 second pause triggers fetch
+        }
+    };
+
+    const handleKeyDown = (e) => {
         if (e.key === "Tab") {
             e.preventDefault();
             if (suggestion) {
                 // Accept suggestion
-                insertText(suggestion);
+                const newContent = content + suggestion;
+                setContent(newContent);
                 setSuggestion("");
-            } else {
-                // Trigger completion
-                await fetchCompletion();
+
+                // Restore focus and move cursor to end
+                setTimeout(() => {
+                    if (textareaRef.current) {
+                        textareaRef.current.selectionStart = textareaRef.current.selectionEnd = newContent.length;
+                        textareaRef.current.focus();
+                    }
+                }, 0);
             }
         }
     };
 
-    const insertText = (text) => {
-        const textarea = textareaRef.current;
-        const start = textarea.selectionStart;
-        const end = textarea.selectionEnd;
-
-        const newContent = content.substring(0, start) + text + content.substring(end);
-        setContent(newContent);
-
-        // Restore cursor position after insertion
-        setTimeout(() => {
-            textarea.selectionStart = textarea.selectionEnd = start + text.length;
-            textarea.focus();
-        }, 0);
-    };
-
-    const fetchCompletion = async () => {
-        if (!content.trim() && !context.trim()) return;
+    const fetchCompletion = async (currentContent) => {
+        if (!currentContent.trim()) return;
 
         setIsLoading(true);
         try {
@@ -46,7 +62,7 @@ export default function Editor({ context }) {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    prompt: content,
+                    prompt: currentContent,
                     context: context
                 }),
             });
@@ -55,11 +71,7 @@ export default function Editor({ context }) {
 
             const data = await res.json();
             if (data.completion) {
-                // For now, just insert it directly or set as suggestion
-                // The user asked for "Tab to place the word", implying we might show it first?
-                // Or "suggests the next word... placed by clicking tab".
-                // Let's insert it directly for now as a "Tab to autocomplete" flow.
-                insertText(data.completion);
+                setSuggestion(data.completion);
             }
         } catch (err) {
             console.error(err);
@@ -69,54 +81,97 @@ export default function Editor({ context }) {
     };
 
     return (
-        <div className="editor-container">
-            <textarea
-                ref={textareaRef}
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Start writing here... Press Tab to let AI suggest the next words."
-                className="editor"
-                spellCheck="false"
-            />
-            {isLoading && <div className="loading-indicator">AI is thinking...</div>}
+        <div className="editor-wrapper">
+            <div className="container">
+                <div className="backdrop" ref={backdropRef}>
+                    <div className="highlights">
+                        {content}
+                        <span className="ghost">{suggestion}</span>
+                    </div>
+                </div>
+                <textarea
+                    ref={textareaRef}
+                    value={content}
+                    onChange={handleChange}
+                    onKeyDown={handleKeyDown}
+                    onScroll={handleScroll}
+                    placeholder="Start writing here..."
+                    className="editor"
+                    spellCheck="false"
+                />
+            </div>
+
+            {isLoading && <div className="status">AI is thinking...</div>}
 
             <style jsx>{`
-        .editor-container {
+        .editor-wrapper {
           flex: 1;
           display: flex;
           flex-direction: column;
           position: relative;
+          height: 100%;
         }
-        .editor {
-          flex: 1;
+        .container {
+          position: relative;
           width: 100%;
+          height: 100%;
+          flex: 1;
+        }
+        
+        /* Shared styles for perfect alignment */
+        .backdrop, .editor {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
           padding: 3rem;
           font-size: 1.1rem;
           line-height: 1.8;
+          font-family: 'Georgia', serif;
+          border-radius: 8px;
+          box-sizing: border-box;
+          white-space: pre-wrap;
+          overflow-wrap: break-word;
+        }
+
+        .backdrop {
+          z-index: 1;
+          background-color: var(--background);
+          color: transparent; /* Hide the main text in backdrop */
+          pointer-events: none;
+          overflow: hidden; /* Scroll is controlled by textarea */
+          border: 1px solid transparent; /* Match textarea border if any */
+        }
+
+        .highlights {
+          color: transparent;
+        }
+
+        .ghost {
+          color: #a0a0a0; /* Grey text for suggestion */
+          opacity: 0.6;
+        }
+
+        .editor {
+          z-index: 2;
+          background-color: transparent;
+          color: var(--foreground);
           border: none;
           resize: none;
-          background: var(--background);
-          color: var(--foreground);
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-          border-radius: 8px;
-          font-family: 'Georgia', serif; /* More writer-friendly font */
         }
+        
         .editor:focus {
           outline: none;
         }
-        .loading-indicator {
+
+        .status {
           position: absolute;
           bottom: 1rem;
           right: 1rem;
           font-size: 0.8rem;
           color: var(--muted);
-          animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-          0% { opacity: 0.5; }
-          50% { opacity: 1; }
-          100% { opacity: 0.5; }
+          pointer-events: none;
         }
       `}</style>
         </div>
