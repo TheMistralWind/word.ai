@@ -1,0 +1,76 @@
+:root {
+  --background: #f8f9fa;
+  --foreground: #212529;
+  --accent: #007aff;
+  --accent-foreground: #ffffff;
+  --muted: #868e96;
+  --border: #e9ecef;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #121212;
+    --foreground: #e0e0e0;
+    --accent: #3b82f6;
+    --accent-foreground: #ffffff;
+    --muted: #a0a0a0;
+    --border: #333333;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  height: 100%;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.6;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Utility classes for layout */
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+}
+
+input, textarea {
+  font-family: inherit;
+  border: none;
+  background: transparent;
+  color: inherit;
+}
+
+input:focus, textarea:focus {
+  outline: none;
+}
