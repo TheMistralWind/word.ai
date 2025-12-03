@@ -8,12 +8,21 @@ export function middleware(request) {
     const basicAuth = request.headers.get('authorization');
 
     if (basicAuth) {
-        const authValue = basicAuth.split(' ')[1];
-        const [user, pwd] = atob(authValue).split(':');
+        try {
+            const authValue = basicAuth.split(' ')[1];
+            const decoded = atob(authValue);
 
-        // Check password (username is ignored)
-        if (pwd === sitePassword) {
-            return NextResponse.next();
+            // Use indexOf to split only on the FIRST colon
+            const splitIndex = decoded.indexOf(':');
+            if (splitIndex !== -1) {
+                const pwd = decoded.substring(splitIndex + 1);
+
+                if (pwd === sitePassword) {
+                    return NextResponse.next();
+                }
+            }
+        } catch (e) {
+            console.error("Auth parsing error", e);
         }
     }
 
