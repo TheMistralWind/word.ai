@@ -81,6 +81,11 @@ export default function ContextPanel({ context, setContext }) {
           placeholder="Describe what you want to write (e.g., 'A sci-fi story about a robot who loves gardening')... or import a file."
         />
       )}
+      {isExpanded && (
+        <p className="hint">
+          Tip: Use AI to make a good system prompt or style prompt!
+        </p>
+      )}
       <style jsx>{`
         .context-panel {
           background: var(--background);
@@ -141,6 +146,12 @@ export default function ContextPanel({ context, setContext }) {
           background: var(--background);
           border-color: var(--accent);
           box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
+        }
+        .hint {
+          font-size: 0.8rem;
+          color: var(--muted);
+          margin-top: 0.5rem;
+          font-style: italic;
         }
       `}</style>
     </div>

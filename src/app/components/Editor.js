@@ -7,6 +7,7 @@ export default function Editor({ context }) {
     const [content, setContent] = useState("");
     const [isLoading, setIsLoading] = useState(false);
     const [suggestion, setSuggestion] = useState("");
+    const [cursorPosition, setCursorPosition] = useState(0);
 
     // Refactor state
     const [showRefactorModal, setShowRefactorModal] = useState(false);
@@ -16,6 +17,7 @@ export default function Editor({ context }) {
     const [diffResult, setDiffResult] = useState(null);
     const [isRefactoring, setIsRefactoring] = useState(false);
     const [modalPosition, setModalPosition] = useState({ top: 0, left: 0 });
+    const [mode, setMode] = useState("refactor"); // "refactor" or "expand"
 
     const textareaRef = useRef(null);
     const backdropRef = useRef(null);
@@ -33,61 +35,81 @@ export default function Editor({ context }) {
     const handleChange = (e) => {
         const newContent = e.target.value;
         setContent(newContent);
+        setCursorPosition(e.target.selectionStart);
         setSuggestion(""); // Clear suggestion on type
+    };
 
-        // Debounce fetch
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-
-        if (newContent.trim().length > 5) { // Only fetch if there's some content
-            timeoutRef.current = setTimeout(() => {
-                fetchCompletion(newContent);
-            }, 500); // 0.5 second pause triggers fetch
-        }
+    const handleSelect = (e) => {
+        setCursorPosition(e.target.selectionStart);
     };
 
     const handleKeyDown = (e) => {
         // Cmd+K or Ctrl+K for Refactor
         if ((e.metaKey || e.ctrlKey) && e.key === "k") {
             e.preventDefault();
-            const start = textareaRef.current.selectionStart;
-            const end = textareaRef.current.selectionEnd;
-
-            if (start !== end) {
-                const selected = content.substring(start, end);
-                setSelectedText(selected);
-                setSelectionRange({ start, end });
-
-                // Calculate position for modal (simplified approximation)
-                // In a real app, we'd use getBoundingClientRect of a dummy element or similar
-                // For now, we'll center it or place it near the top
-                setModalPosition({ top: 100, left: '50%' });
-
-                setShowRefactorModal(true);
-                setDiffResult(null);
-                setRefactorInstruction("");
-
-                // Focus input after render
-                setTimeout(() => modalInputRef.current?.focus(), 0);
-            }
+            openModal("refactor");
             return;
         }
 
+        // Cmd+G or Ctrl+G for Expand
+        if ((e.metaKey || e.ctrlKey) && e.key === "g") {
+            e.preventDefault();
+            openModal("expand");
+            return;
+        }
+
+        // Tab to Fetch Suggestion
         if (e.key === "Tab") {
+            e.preventDefault();
+            if (!suggestion && !isLoading) {
+                // Fetch suggestion based on context up to cursor
+                const textUpToCursor = content.substring(0, textareaRef.current.selectionStart);
+                fetchCompletion(textUpToCursor);
+            }
+        }
+
+        // Cmd+Y to Accept Suggestion
+        if ((e.metaKey || e.ctrlKey) && e.key === "y") {
             e.preventDefault();
             if (suggestion) {
                 // Accept suggestion
-                const newContent = content + suggestion;
+                const beforeCursor = content.substring(0, cursorPosition);
+                const afterCursor = content.substring(cursorPosition);
+                const newContent = beforeCursor + suggestion + afterCursor;
+
                 setContent(newContent);
                 setSuggestion("");
 
-                // Restore focus and move cursor to end
+                // Move cursor to end of inserted suggestion
+                const newCursorPos = cursorPosition + suggestion.length;
                 setTimeout(() => {
                     if (textareaRef.current) {
-                        textareaRef.current.selectionStart = textareaRef.current.selectionEnd = newContent.length;
+                        textareaRef.current.selectionStart = textareaRef.current.selectionEnd = newCursorPos;
                         textareaRef.current.focus();
+                        setCursorPosition(newCursorPos);
                     }
                 }, 0);
             }
+        }
+    };
+
+    const openModal = (modeType) => {
+        const start = textareaRef.current.selectionStart;
+        const end = textareaRef.current.selectionEnd;
+
+        if (start !== end) {
+            const selected = content.substring(start, end);
+            setSelectedText(selected);
+            setSelectionRange({ start, end });
+
+            setModalPosition({ top: 100, left: '50%' });
+
+            setShowRefactorModal(true);
+            setDiffResult(null);
+            setMode(modeType);
+            setRefactorInstruction(modeType === "expand" ? "Expand this into a detailed paragraph." : "");
+
+            setTimeout(() => modalInputRef.current?.focus(), 0);
         }
     };
 
@@ -124,7 +146,8 @@ export default function Editor({ context }) {
 
         setIsRefactoring(true);
         try {
-            const res = await fetch("/api/refactor", {
+            const endpoint = mode === "expand" ? "/api/expand" : "/api/refactor";
+            const res = await fetch(endpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -133,7 +156,7 @@ export default function Editor({ context }) {
                 }),
             });
 
-            if (!res.ok) throw new Error("Failed to refactor");
+            if (!res.ok) throw new Error("Failed to process text");
 
             const data = await res.json();
             if (data.rewrittenText) {
@@ -142,7 +165,7 @@ export default function Editor({ context }) {
             }
         } catch (err) {
             console.error(err);
-            alert("Failed to refactor text");
+            alert("Failed to process text");
         } finally {
             setIsRefactoring(false);
         }
@@ -182,8 +205,9 @@ export default function Editor({ context }) {
             <div className="container">
                 <div className="backdrop" ref={backdropRef}>
                     <div className="highlights">
-                        {content}
+                        {content.substring(0, cursorPosition)}
                         <span className="ghost">{suggestion}</span>
+                        {content.substring(cursorPosition)}
                     </div>
                 </div>
                 <textarea
@@ -192,7 +216,9 @@ export default function Editor({ context }) {
                     onChange={handleChange}
                     onKeyDown={handleKeyDown}
                     onScroll={handleScroll}
-                    placeholder="Start writing here... (Select text and press Cmd+K to refactor)"
+                    onSelect={handleSelect}
+                    onClick={handleSelect}
+                    placeholder="Start writing here... (Tab for AI, Cmd+K to Refactor, Cmd+G to Expand)"
                     className="editor"
                     spellCheck="false"
                 />
@@ -205,7 +231,7 @@ export default function Editor({ context }) {
                     <div className="refactor-modal">
                         {!diffResult ? (
                             <form onSubmit={handleRefactorSubmit}>
-                                <h4>Refactor Selection</h4>
+                                <h4>{mode === "expand" ? "Expand Selection" : "Refactor Selection"}</h4>
                                 <div className="selected-preview">
                                     "{selectedText.length > 50 ? selectedText.substring(0, 50) + "..." : selectedText}"
                                 </div>
@@ -214,14 +240,14 @@ export default function Editor({ context }) {
                                     type="text"
                                     value={refactorInstruction}
                                     onChange={(e) => setRefactorInstruction(e.target.value)}
-                                    placeholder="How should I change this? (e.g., 'Make it punchier')"
+                                    placeholder={mode === "expand" ? "Expand instructions..." : "How should I change this?"}
                                     className="refactor-input"
                                     autoFocus
                                 />
                                 <div className="modal-actions">
                                     <button type="button" onClick={closeModal} className="cancel-btn">Cancel</button>
                                     <button type="submit" disabled={isRefactoring} className="submit-btn">
-                                        {isRefactoring ? "Thinking..." : "Refactor"}
+                                        {isRefactoring ? "Thinking..." : (mode === "expand" ? "Expand" : "Refactor")}
                                     </button>
                                 </div>
                             </form>
