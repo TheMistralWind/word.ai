@@ -13,8 +13,8 @@ export async function POST(req) {
 
         // Construct a system message based on the user's context
         const systemMessage = context
-            ? `You are a helpful writing assistant. The user is writing a text with the following context/style: "${context}". Continue the text naturally, matching the style. Provide only the next few words or sentences to complete the thought. Do not repeat the prompt.`
-            : "You are a helpful writing assistant. Continue the text naturally. Provide only the next few words or sentences to complete the thought. Do not repeat the prompt.";
+            ? `You are a helpful writing assistant. The user is writing a text with the following context/style: "${context}". Continue the text naturally, matching the style. IMPORTANT: Ensure proper spacing (start with a space if needed). Complete the current sentence or thought fully. Do not repeat the prompt.`
+            : "You are a helpful writing assistant. Continue the text naturally. IMPORTANT: Ensure proper spacing (start with a space if needed). Complete the current sentence or thought fully. Do not repeat the prompt.";
 
         const response = await openai.chat.completions.create({
             model: "gpt-4o-mini",
@@ -22,7 +22,7 @@ export async function POST(req) {
                 { role: "system", content: systemMessage },
                 { role: "user", content: prompt },
             ],
-            max_tokens: 50, // Keep it short for "next word" feel
+            max_tokens: 150, // Increased for complete sentences
             temperature: 0.7,
         });
 

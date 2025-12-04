@@ -29,7 +29,7 @@ export default function Editor({ context }) {
         if (newContent.trim().length > 5) { // Only fetch if there's some content
             timeoutRef.current = setTimeout(() => {
                 fetchCompletion(newContent);
-            }, 1000); // 1 second pause triggers fetch
+            }, 500); // 0.5 second pause triggers fetch
         }
     };
 
