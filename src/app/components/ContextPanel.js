@@ -6,17 +6,43 @@ export default function ContextPanel({ context, setContext }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const fileInputRef = useRef(null);
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const text = event.target.result;
+    let text = "";
+
+    try {
+      if (file.type === "application/pdf") {
+        // Dynamically import pdfjs-dist to avoid SSR issues
+        const pdfjs = await import('pdfjs-dist');
+        pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjs.getDocument(arrayBuffer).promise;
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map((item) => item.str).join(" ");
+          text += pageText + "\n";
+        }
+      } else {
+        // Handle text-based files
+        text = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (event) => resolve(event.target.result);
+          reader.onerror = (error) => reject(error);
+          reader.readAsText(file);
+        });
+      }
+
       const separator = context ? "\n\n" : "";
       setContext(context + separator + `--- [File: ${file.name}] ---\n` + text);
-    };
-    reader.readAsText(file);
+    } catch (error) {
+      console.error("Error reading file:", error);
+      alert("Failed to read file. Please try again.");
+    }
 
     // Reset input so the same file can be selected again if needed
     e.target.value = null;
@@ -43,7 +69,7 @@ export default function ContextPanel({ context, setContext }) {
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
-          accept=".txt,.md,.json,.csv"
+          accept=".txt,.md,.json,.csv,.pdf"
           style={{ display: 'none' }}
         />
       </div>
