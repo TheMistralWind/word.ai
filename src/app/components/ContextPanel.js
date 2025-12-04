@@ -1,21 +1,58 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useRef } from "react";
 
 export default function ContextPanel({ context, setContext }) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      const separator = context ? "\n\n" : "";
+      setContext(context + separator + `--- [File: ${file.name}] ---\n` + text);
+    };
+    reader.readAsText(file);
+
+    // Reset input so the same file can be selected again if needed
+    e.target.value = null;
+  };
 
   return (
     <div className={`context-panel ${isExpanded ? "expanded" : "collapsed"}`}>
-      <div className="header" onClick={() => setIsExpanded(!isExpanded)}>
-        <h3>Writing Context</h3>
-        <button>{isExpanded ? "−" : "+"}</button>
+      <div className="header">
+        <div className="title-group" onClick={() => setIsExpanded(!isExpanded)}>
+          <h3>Writing Context</h3>
+          <span className="toggle-icon">{isExpanded ? "−" : "+"}</span>
+        </div>
+
+        {isExpanded && (
+          <button
+            className="import-btn"
+            onClick={() => fileInputRef.current?.click()}
+            title="Import text file"
+          >
+            Import File
+          </button>
+        )}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".txt,.md,.json,.csv"
+          style={{ display: 'none' }}
+        />
       </div>
+
       {isExpanded && (
         <textarea
           value={context}
           onChange={(e) => setContext(e.target.value)}
-          placeholder="Describe what you want to write (e.g., 'A sci-fi story about a robot who loves gardening', 'A professional email to a client')..."
+          placeholder="Describe what you want to write (e.g., 'A sci-fi story about a robot who loves gardening')... or import a file."
         />
       )}
       <style jsx>{`
@@ -30,9 +67,14 @@ export default function ContextPanel({ context, setContext }) {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          cursor: pointer;
           margin-bottom: 0.5rem;
+        }
+        .title-group {
+          display: flex;
+          align-items: center;
+          cursor: pointer;
           user-select: none;
+          gap: 0.5rem;
         }
         h3 {
           font-size: 0.9rem;
@@ -41,9 +83,21 @@ export default function ContextPanel({ context, setContext }) {
           color: var(--muted);
           font-weight: 600;
         }
-        button {
+        .toggle-icon {
           font-size: 1.2rem;
           color: var(--muted);
+        }
+        .import-btn {
+          font-size: 0.8rem;
+          color: var(--accent);
+          border: 1px solid var(--accent);
+          padding: 0.2rem 0.6rem;
+          border-radius: 4px;
+          transition: all 0.2s;
+        }
+        .import-btn:hover {
+          background: var(--accent);
+          color: var(--accent-foreground);
         }
         textarea {
           width: 100%;
