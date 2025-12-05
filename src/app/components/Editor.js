@@ -61,7 +61,7 @@ export default function Editor({ context }) {
         // Tab to Fetch Suggestion
         if (e.key === "Tab") {
             e.preventDefault();
-            if (!suggestion && !isLoading) {
+            if (!isLoading) {
                 // Fetch suggestion based on context up to cursor
                 const textUpToCursor = content.substring(0, textareaRef.current.selectionStart);
                 fetchCompletion(textUpToCursor);
@@ -117,6 +117,7 @@ export default function Editor({ context }) {
         if (!currentContent.trim()) return;
 
         setIsLoading(true);
+        setSuggestion(""); // Clear existing suggestion to show loading state
         try {
             const res = await fetch("/api/completion", {
                 method: "POST",
@@ -213,7 +214,7 @@ export default function Editor({ context }) {
                 <div className="backdrop" ref={backdropRef}>
                     <div className="highlights">
                         {content.substring(0, cursorPosition)}
-                        <span className="ghost">{suggestion}</span>
+                        <span className="ghost">{isLoading ? "..." : suggestion}</span>
                         {content.substring(cursorPosition)}
                     </div>
                 </div>
