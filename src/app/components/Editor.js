@@ -147,13 +147,20 @@ export default function Editor({ context }) {
         setIsRefactoring(true);
         try {
             const endpoint = mode === "expand" ? "/api/expand" : "/api/refactor";
+            const body = {
+                originalText: selectedText,
+                instruction: refactorInstruction
+            };
+
+            if (mode === "expand") {
+                body.context = context;
+                body.fullText = content;
+            }
+
             const res = await fetch(endpoint, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    originalText: selectedText,
-                    instruction: refactorInstruction
-                }),
+                body: JSON.stringify(body),
             });
 
             if (!res.ok) throw new Error("Failed to process text");

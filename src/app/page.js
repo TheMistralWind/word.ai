@@ -25,6 +25,14 @@ export default function Home() {
             <kbd>Cmd</kbd>+<kbd>G</kbd> <span>Expand Headline</span>
           </li>
         </ul>
+
+        <div className="instructions">
+          <h3>How to Use</h3>
+          <p><strong>Tab</strong>: Get a short suggestion.</p>
+          <p><strong>Cmd+Y</strong>: Accept the suggestion.</p>
+          <p><strong>Cmd+K</strong>: Select text to rewrite/fix.</p>
+          <p><strong>Cmd+G</strong>: Select a headline to expand into a paragraph.</p>
+        </div>
       </aside>
       <div className="content-area">
         <ContextPanel context={context} setContext={setContext} />
@@ -68,6 +76,28 @@ export default function Home() {
           font-family: var(--font-mono);
           font-size: 0.8rem;
         }
+        .instructions {
+          margin-top: 2rem;
+          padding-top: 2rem;
+          border-top: 1px solid var(--border);
+        }
+        .instructions h3 {
+          margin-bottom: 1rem;
+          font-size: 0.8rem;
+          text-transform: uppercase;
+          color: var(--muted);
+          letter-spacing: 1px;
+        }
+        .instructions p {
+          font-size: 0.85rem;
+          margin-bottom: 0.8rem;
+          color: var(--muted);
+          line-height: 1.4;
+        }
+        .instructions strong {
+          color: var(--foreground);
+          font-weight: 600;
+        }
         .content-area {
           flex: 1;
           display: flex;
@@ -76,6 +106,6 @@ export default function Home() {
           height: 100%;
         }
       `}</style>
-    </main>
+    </main >
   );
 }

@@ -9,7 +9,7 @@ export async function POST(req) {
             apiKey: process.env.OPENAI_API_KEY,
         });
 
-        const { originalText, instruction } = await req.json();
+        const { originalText, instruction, context, fullText } = await req.json();
 
         if (!originalText) {
             return NextResponse.json(
@@ -23,13 +23,16 @@ Your task is to expand it into a full, well-written paragraph.
 
 Your Rules:
 1. Write a paragraph based on the headline/description.
-2. Maintain a consistent tone.
+2. Maintain the tone and language of the surrounding text.
 3. OUTPUT ONLY THE GENERATED PARAGRAPH.
 4. Do not output conversational filler.
-5. Do not output markdown code blocks.`;
+5. Do not output markdown code blocks.
+
+Context provided by user: "${context || "None"}"
+Surrounding text sample: "${fullText ? fullText.substring(0, 500) + "..." : "None"}"`;
 
         const userMessage = `Headline/Description: "${originalText}"
-Instruction (Optional): "${instruction || "Expand this into a detailed paragraph."}"`;
+Instruction (Optional): "${instruction || "Expand this into a detailed paragraph matching the surrounding text's language and style."}"`;
 
         const response = await openai.chat.completions.create({
             model: "gpt-4o-mini",
